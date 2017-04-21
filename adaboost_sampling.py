@@ -90,11 +90,13 @@ def printResultsSummary(resultsArr, header=None, metric="Results", entryLabel="i
     for i in range(len(resultsArr)):
         fout.write(metric + " of " + entryLabel + "#" + str(i+1) + ": = " + str(resultsArr[i]) + "\n");
 
-def trainModel(trainX, trainY):
+def trainModel(trainX, trainY, validationX=None, validationY=None):
     net = buildNetwork();
     model = tflearn.DNN(net, tensorboard_verbose=0)
-    model.fit(trainX, trainY, n_epoch=kNEpochs, validation_set=(validationX, validationY), show_metric=True, batch_size=32)
-    #model.fit(trainX, trainY, n_epoch=kNEpochs, validation_set=0.1, show_metric=True, batch_size=32);
+    if (validationX == None || validationY == None):
+        model.fit(trainX, trainY, n_epoch=kNEpochs, validation_set=0.1, show_metric=True, batch_size=32);
+    else:
+        model.fit(trainX, trainY, n_epoch=kNEpochs, validation_set=(validationX, validationY), show_metric=True, batch_size=32)
     return model;
 
 
@@ -144,6 +146,27 @@ else:
         metaData = pickle.load(f);
 
     numLoadedModels = metaData[numSavedModelsKey];
+    if (len(metaData[alphasKey]) < kBoostIters):
+        oldLen = len(metaData[alphasKey]);
+        tmp = metaData[alphasKey];
+        metaData[alphasKey] = np.zeros(kBoostIters);
+        metaData[alphasKey][0:oldLen] = tmp;
+        tmp = metaData[modelsTrainAccKey];
+        metaData[modelsTrainAccKey] = np.zeros(kBoostIters);
+        metaData[modelsTrainAccKey][0:oldLen] = tmp;
+        tmp = metaData[modelsTestAccKey];
+        metaData[modelsTestAccKey] = np.zeros(kBoostIters);
+        metaData[modelsTestAccKey][0:oldLen] = tmp;
+        tmp = metaData[boostTrainAccKey];
+        metaData[boostTrainAccKey] = np.zeros(kBoostIters);
+        metaData[boostTrainAccKey][0:oldLen] = tmp;
+        tmp = metaData[boostTestAccKey];
+        metaData[boostTestAccKey] = np.zeros(kBoostIters);
+        metaData[boostTestAccKey][0:oldLen] = tmp;
+        tmp = metaData[wVecsKey];
+        metaData[wVecsKey] = [None] * kBoostIters;
+        metaData[wVecsKey][0:oldLen] = tmp;
+
     w_boost = metaData[wVecsKey][numLoadedModels-1];
     print("Loading " + str(numLoadedModels) + " trained models...");
     for i in range(numLoadedModels):
@@ -169,7 +192,7 @@ for i in range(numLoadedModels, kBoostIters):
     sampleLables = trainLabels[sample];
 
     # Train model
-    model = trainModel(sampleX, sampleY);
+    model = trainModel(sampleX, sampleY, validationX, validationY);
     models[i] = model;
     modelFileName = 'model_' + str(i) + '.tfl';
     modelFilePath = os.path.join(kDataDir, modelFileName); 
@@ -201,6 +224,8 @@ for i in range(numLoadedModels, kBoostIters):
     metaData[boostTrainAccKey][i] = boostTrainAcc;
     metaData[boostTestAccKey][i] = boostTestAcc;
     metaData[wVecsKey][i] = np.copy(w_boost);
+    metaData[adaScoresTrainKey] = adaScoresTrain;
+    metaData[adaScoresTestKey] = adaScoresTest;
     with open(metaDataFile, 'wb') as f:
         pickle.dump(metaData, f);
 
