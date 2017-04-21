@@ -93,7 +93,7 @@ def printResultsSummary(resultsArr, header=None, metric="Results", entryLabel="i
 def trainModel(trainX, trainY, validationX=None, validationY=None):
     net = buildNetwork();
     model = tflearn.DNN(net, tensorboard_verbose=0)
-    if (validationX == None || validationY == None):
+    if (validationX == None or validationY == None):
         model.fit(trainX, trainY, n_epoch=kNEpochs, validation_set=0.1, show_metric=True, batch_size=32);
     else:
         model.fit(trainX, trainY, n_epoch=kNEpochs, validation_set=(validationX, validationY), show_metric=True, batch_size=32)
@@ -232,11 +232,11 @@ for i in range(numLoadedModels, kBoostIters):
     # Print results
     printResultsSummary(metaData[modelsTrainAccKey][0:i+1], 'Models Train Accuracy:', 'Accuracy', 'model');
     print("--------------------------------------------------");
-    printResultsSummary(metaData[boostTrainAccKey][0:i+1], 'Adaboost Train Accuracy:', 'Accuracy', 'Adaboot iter');
+    printResultsSummary(metaData[boostTrainAccKey][0:i+1], 'Adaboost Train Accuracy:', 'Accuracy', 'Adaboost iter');
     print("--------------------------------------------------");
     printResultsSummary(metaData[modelsTestAccKey][0:i+1], 'Models Test Accuracy:', 'Accuracy', 'model');
     print("--------------------------------------------------");
-    printResultsSummary(metaData[boostTestAccKey][0:i+1], 'Adaboost Train Accuracy:', 'Accuracy', 'Adaboot iter');
+    printResultsSummary(metaData[boostTestAccKey][0:i+1], 'Adaboost Test Accuracy:', 'Accuracy', 'Adaboost iter');
     print("==================================================\n");
     
 
@@ -248,11 +248,11 @@ print("Sampling ratio = " + str(kSamplingRatio));
 print("Dropout = " + str(kDropoutProb))
 printResultsSummary(metaData[modelsTrainAccKey], 'Models Train Accuracy:', 'Accuracy', 'model');
 print("--------------------------------------------------");
-printResultsSummary(metaData[boostTrainAccKey], 'Adaboost Train Accuracy:', 'Accuracy', 'Adaboot iter');
+printResultsSummary(metaData[boostTrainAccKey], 'Adaboost Train Accuracy:', 'Accuracy', 'Adaboost iter');
 print("--------------------------------------------------");
 printResultsSummary(metaData[modelsTestAccKey], 'Models Test Accuracy:', 'Accuracy', 'model');
 print("--------------------------------------------------");
-printResultsSummary(metaData[boostTestAccKey], 'Adaboost Train Accuracy:', 'Accuracy', 'Adaboot iter');
+printResultsSummary(metaData[boostTestAccKey], 'Adaboost Test Accuracy:', 'Accuracy', 'Adaboost iter');
 print("==================================================\n");
 
 resultsFileName = "results-iters=" + str(kBoostIters) + "-epochs=" + str(kNEpochs) + "-sample=" + str(kSamplingRatio) + "-dropout=" + str(kDropoutProb) + ".txt";
@@ -265,11 +265,11 @@ with open(resultsFilePath, 'w') as f:
     f.write("Dropout = " + str(kDropoutProb) + "\n")
     printResultsSummary(metaData[modelsTrainAccKey], 'Models Train Accuracy:', 'Accuracy', 'model', f);
     f.write("--------------------------------------------------\n");
-    printResultsSummary(metaData[boostTrainAccKey], 'Adaboost Train Accuracy:', 'Accuracy', 'Adaboot iter', f);
+    printResultsSummary(metaData[boostTrainAccKey], 'Adaboost Train Accuracy:', 'Accuracy', 'Adaboost iter', f);
     f.write("--------------------------------------------------\n");
     printResultsSummary(metaData[modelsTestAccKey], 'Models Test Accuracy:', 'Accuracy', 'model', f);
     f.write("--------------------------------------------------\n");
-    printResultsSummary(metaData[boostTestAccKey], 'Adaboost Train Accuracy:', 'Accuracy', 'Adaboot iter', f);
+    printResultsSummary(metaData[boostTestAccKey], 'Adaboost Test Accuracy:', 'Accuracy', 'Adaboost iter', f);
     f.write("==================================================\n");
 
 
