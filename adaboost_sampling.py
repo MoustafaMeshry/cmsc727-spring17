@@ -16,9 +16,8 @@ kDataDir = 'models';
 
 # Parameters
 kSamplingRatio = 0.3
-kNEpochs = 1;
-#kBoostIters = 10;
-kBoostIters = 3;
+kNEpochs = 5;
+kBoostIters = 10;
 kDropoutProb = 0.8;
 
 # Dictionary keys
