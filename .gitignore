@@ -1,0 +1,6 @@
+trials/
+*.pckl
+*.tfl*
+*.txt
+~*
+.*
