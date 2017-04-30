@@ -10,12 +10,14 @@ import sys
 from tflearn.data_utils import to_categorical, pad_sequences
 from tflearn.datasets import imdb
 import tflearn
+import time
 
 import numpy as np
 import tensorflow as tf
 
 def buildNetwork(numH, dropoutProb):
     tf.reset_default_graph()
+#    tf.Session.reset(tf.get_default_session())
     net = tflearn.input_data([None, 100])
     net = tflearn.embedding(net, input_dim=10000, output_dim=numH)
     net = tflearn.lstm(net, numH, dropout=dropoutProb)
@@ -23,6 +25,17 @@ def buildNetwork(numH, dropoutProb):
     net = tflearn.regression(net, optimizer='adam', learning_rate=0.001,
                              loss='categorical_crossentropy')
     return net
+
+# ===========================================================================
+
+def trainModel(net, trainX, trainY,  currSession=None, nEpochs=10,
+        validationX=None, validationY=None):
+    model = tflearn.DNN(net, tensorboard_verbose=0, session=currSession, best_checkpoint_path='models/chkPt')
+    if (validationX is None or validationY is None):
+        model.fit(trainX, trainY, n_epoch=nEpochs, validation_set=0.1, show_metric=True, batch_size=32)
+    else:
+        model.fit(trainX, trainY, n_epoch=nEpochs, validation_set=(validationX, validationY), show_metric=True, batch_size=32)
+    return model
 
 # ===========================================================================
 
@@ -34,23 +47,29 @@ def computeAccuracy(labels, gtLabels):
 
 def evaluateAdaboost(models, alphas, data, gtLabels, adaScores=None, printResults=False):
     if adaScores is None:
+        print("W: Computing classification scores from scratch!")
         n = len(gtLabels)
         adaScores = np.zeros(n * 2).reshape(n, 2) # 2 is the number of classes
-    for i in range(len(alphas)):
-        scores = predict(models[i], data)
-        adaScores = adaScores + alphas[i] * scores
-        if printResults:
-            modelLabels = np.argmax(scores, 1)
-            modelAcc = computeAccuracy(modelLabels, gtLabels)
-            print("Model #" + str(i+1) + ": Accuracy = " + str(modelAcc))
+        for i in range(len(alphas) - 1):
+            scores = predict(models[i], data)
+            adaScores = adaScores + alphas[i] * scores
 
-    labels = np.argmax(adaScores, 1)
-    acc = computeAccuracy(labels, gtLabels)
+    last = len(alphas) - 1
+    scores = predict(models[last], data)
+    adaScores = adaScores + alphas[last] * scores
+    if printResults:
+        modelLabels = np.argmax(scores, 1)
+        modelAcc = computeAccuracy(modelLabels, gtLabels)
+        print("Model #" + str(last+1) + ": Accuracy = " + str(modelAcc))
+
+    # adaboost labels
+    adaLabels = np.argmax(adaScores, 1)
+    acc = computeAccuracy(adaLabels, gtLabels)
     if printResults:
         print("Adaboost Accuracy = " + str(acc))
         print("=============================================\n")
 
-    return acc, adaScores
+    return acc, adaScores, adaLabels
 
 # ===========================================================================
 
@@ -87,16 +106,6 @@ def printResultsSummary(resultsArr, header=None, metric="Results", entryLabel="i
 
 # ===========================================================================
 
-def trainModel(net, trainX, trainY,  nEpochs=10, validationX=None, validationY=None):
-    model = tflearn.DNN(net, tensorboard_verbose=0)
-    if (validationX == None or validationY == None):
-        model.fit(trainX, trainY, n_epoch=nEpochs, validation_set=0.1, show_metric=True, batch_size=32)
-    else:
-        model.fit(trainX, trainY, n_epoch=nEpochs, validation_set=(validationX, validationY), show_metric=True, batch_size=32)
-    return model;
-
-# ===========================================================================
-
 def runIMDBExperiment(samplingRatio=0.5, nEpochs=5, nBoostIters=10,
         dropoutProb=0.8, numH=128):
     # Constants
@@ -108,9 +117,12 @@ def runIMDBExperiment(samplingRatio=0.5, nEpochs=5, nBoostIters=10,
     alphasKey = 'alphas'
     boostTestAccKey = 'boostTestAcc'
     boostTrainAccKey = 'boostTrainAcc'
+    boostValAccKey = 'boostValAcc'
     modelsTrainAccKey = 'modelsTrainAcc'
     modelsTestAccKey = 'modelsTestAcc'
+    modelsValAccKey = 'modelsValAcc'
     numSavedModelsKey = 'numSavedModels'
+    runningTimeKey = 'runningTime'
     wVecsKey = 'wVecs'
 
 
@@ -150,8 +162,10 @@ def runIMDBExperiment(samplingRatio=0.5, nEpochs=5, nBoostIters=10,
         metaData[alphasKey] = np.zeros(nBoostIters)
         metaData[modelsTrainAccKey] = np.zeros(nBoostIters)
         metaData[modelsTestAccKey] = np.zeros(nBoostIters)
+        metaData[modelsValAccKey] = np.zeros(nBoostIters)
         metaData[boostTrainAccKey] = np.zeros(nBoostIters)
         metaData[boostTestAccKey] = np.zeros(nBoostIters)
+        metaData[boostValAccKey] = np.zeros(nBoostIters)
         metaData[wVecsKey] = [None] * nBoostIters
         metaData[adaScoresTrainKey] = np.zeros(len(trainLabels) * 2).reshape(
                             len(trainLabels), 2) # 2 = num of classes
@@ -173,12 +187,18 @@ def runIMDBExperiment(samplingRatio=0.5, nEpochs=5, nBoostIters=10,
             tmp = metaData[modelsTestAccKey]
             metaData[modelsTestAccKey] = np.zeros(nBoostIters)
             metaData[modelsTestAccKey][0:oldLen] = tmp
+            tmp = metaData[modelsValAccKey]
+            metaData[modelsValAccKey] = np.zeros(nBoostIters)
+            metaData[modelsValAccKey][0:oldLen] = tmp
             tmp = metaData[boostTrainAccKey]
             metaData[boostTrainAccKey] = np.zeros(nBoostIters)
             metaData[boostTrainAccKey][0:oldLen] = tmp
             tmp = metaData[boostTestAccKey]
             metaData[boostTestAccKey] = np.zeros(nBoostIters)
             metaData[boostTestAccKey][0:oldLen] = tmp
+            tmp = metaData[boostValAccKey]
+            metaData[boostValAccKey] = np.zeros(nBoostIters)
+            metaData[boostValAccKey][0:oldLen] = tmp
             tmp = metaData[wVecsKey]
             metaData[wVecsKey] = [None] * nBoostIters
             metaData[wVecsKey][0:oldLen] = tmp
@@ -189,7 +209,7 @@ def runIMDBExperiment(samplingRatio=0.5, nEpochs=5, nBoostIters=10,
             modelFileName = 'model_' + str(i) + '.tfl'
             modelFilePath = os.path.join(kDataDir, modelFileName)
             net = buildNetwork(numH, dropoutProb)
-            currModel = tflearn.DNN(net, tensorboard_verbose=0)
+            currModel = tflearn.DNN(net, tensorboard_verbose=0, best_checkpoint_path='models/chkPt')
             currModel.load(modelFilePath, weights_only=True)
             print("Loaded model #" + str(i+1) + ".")
             models[i] = currModel
@@ -199,17 +219,35 @@ def runIMDBExperiment(samplingRatio=0.5, nEpochs=5, nBoostIters=10,
 
     adaScoresTrain = metaData[adaScoresTrainKey]
     adaScoresTest = metaData[adaScoresTestKey]
+    stTime = time.time()
     for i in range(numLoadedModels, nBoostIters):
-    #    sample = np.random.randint(0, nTrain, sampleSz)
+#        sample = np.random.randint(0, nTrain, sampleSz) # uniform sampling
+
         wCumSum = np.cumsum(w_boost)
-        sample = np.searchsorted(wCumSum, np.random.rand(sampleSz))
+        sample = np.searchsorted(wCumSum, np.random.rand(sampleSz)) # weighted sampling
+
+        # Applying soft-replacement! (TODO: leave it or remove it?)
+        sample = np.unique(sample)
+        remSample = np.random.randint(0, nTrain, sampleSz - len(sample))
+        sample = np.concatenate((sample, remSample))
+
+        redundancy = 100 * (1 - len(np.unique(sample)) / len(sample))
+
         sampleX = trainX[sample, :]
         sampleY = trainY[sample, :]
         sampleLables = trainLabels[sample]
 
         # Train model
+#        with tf.Session() as currSession:
+#            net = buildNetwork(numH, dropoutProb)
+#            model = trainModel(net, sampleX, sampleY, currSession, nEpochs, validationX, validationY)
+#            models[i] = model
+#            modelFileName = 'model_' + str(i) + '.tfl'
+#            modelFilePath = os.path.join(kDataDir, modelFileName)
+#            model.save(modelFilePath)
+
         net = buildNetwork(numH, dropoutProb)
-        model = trainModel(net, sampleX, sampleY, nEpochs, validationX, validationY)
+        model = trainModel(net, sampleX, sampleY, None, nEpochs, validationX, validationY)
         models[i] = model
         modelFileName = 'model_' + str(i) + '.tfl'
         modelFilePath = os.path.join(kDataDir, modelFileName)
@@ -228,31 +266,43 @@ def runIMDBExperiment(samplingRatio=0.5, nEpochs=5, nBoostIters=10,
         modelTrainAcc = computeAccuracy(modelTrainLabels, trainLabels)
         modelTestLabels = predictLabels(model, testX)
         modelTestAcc = computeAccuracy(modelTestLabels, testLabels)
-        boostTrainAcc,adaScoresTrain = evaluateAdaboost(
+        modelValLabels = predictLabels(model, validationX)
+        modelValAcc = computeAccuracy(modelValLabels, validationLabels)
+        boostTrainAcc,adaScoresTrain,adaLabelsTrain = evaluateAdaboost(
             [models[i]], [alphas[i]], trainX, trainLabels, adaScores=adaScoresTrain)
-        boostTestAcc,adaScoresTest = evaluateAdaboost(
+        boostTestAcc,adaScoresTest,_ = evaluateAdaboost(
             [models[i]], [alphas[i]], testX, testLabels, adaScores=adaScoresTest)
 
         # Save/(update saved) dictionay
         metaData[numSavedModelsKey] = metaData[numSavedModelsKey] + 1
         metaData[alphasKey][i] = alpha
         metaData[modelsTrainAccKey][i] = modelTrainAcc
+        metaData[modelsValAccKey][i] = modelValAcc
         metaData[modelsTestAccKey][i] = modelTestAcc
         metaData[boostTrainAccKey][i] = boostTrainAcc
+        #metaData[boostValAccKey][i] = boostValAcc
         metaData[boostTestAccKey][i] = boostTestAcc
         metaData[wVecsKey][i] = np.copy(w_boost)
         metaData[adaScoresTrainKey] = adaScoresTrain
         metaData[adaScoresTestKey] = adaScoresTest
+        metaData[runningTimeKey] = time.time() - stTime
         with open(metaDataFile, 'wb') as f:
             pickle.dump(metaData, f)
 
         # Print results
+        print("Percentage of redundant training samples = " + str(redundancy))
         printResultsSummary(metaData[modelsTrainAccKey][0:i+1], 'Models Train Accuracy:', 'Accuracy',
                             'model')
         print("--------------------------------------------------")
         printResultsSummary(metaData[boostTrainAccKey][0:i+1], 'Adaboost Train Accuracy:', 'Accuracy',
                             'Adaboost iter')
         print("--------------------------------------------------")
+        printResultsSummary(metaData[modelsValAccKey][0:i+1], 'Models Validation Accuracy:', 'Validation',
+                            'model')
+        print("--------------------------------------------------")
+#        printResultsSummary(metaData[boostValAccKey][0:i+1], 'Adaboost Validation Accuracy:', 'Accuracy',
+#                            'Adaboost iter')
+#        print("--------------------------------------------------")
         printResultsSummary(metaData[modelsTestAccKey][0:i+1], 'Models Test Accuracy:', 'Accuracy',
                             'model')
         print("--------------------------------------------------")
@@ -261,12 +311,14 @@ def runIMDBExperiment(samplingRatio=0.5, nEpochs=5, nBoostIters=10,
         print("==================================================\n")
 
 
+    runTimeSec = time.time() - stTime
     # Print overall summary (to stdout and to file)
     print("Run Summary:")
     print("Number classifiers = " + str(nBoostIters))
     print("Number of epochs = " + str(nEpochs))
     print("Sampling ratio = " + str(samplingRatio))
     print("Dropout = " + str(dropoutProb))
+    print("Running time = " + str(runTimeSec/60) + " minutes")
     printResultsSummary(metaData[modelsTrainAccKey], 'Models Train Accuracy:', 'Accuracy', 'model')
     print("--------------------------------------------------")
     printResultsSummary(metaData[boostTrainAccKey], 'Adaboost Train Accuracy:', 'Accuracy',
@@ -287,6 +339,7 @@ def runIMDBExperiment(samplingRatio=0.5, nEpochs=5, nBoostIters=10,
         f.write("Number of epochs = " + str(nEpochs) + "\n")
         f.write("Sampling ratio = " + str(samplingRatio) + "\n")
         f.write("Dropout = " + str(dropoutProb) + "\n")
+        f.write("Running time = " + str(runTimeSec/60) + " minutes")
         printResultsSummary(metaData[modelsTrainAccKey], 'Models Train Accuracy:',
                             'Accuracy', 'model', f)
         f.write("--------------------------------------------------\n")
