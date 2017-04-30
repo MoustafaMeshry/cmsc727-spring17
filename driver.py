@@ -62,3 +62,12 @@ if runArchExp:
         shutil.move('models/modelsMeta.pckl', expPath)
         shutil.move(glob.glob(r'models/results*')[0], expPath)
 
+# =================================================================
+
+# Remove checkpoints
+trashPath = os.path.join('models', 'check_point_trash')
+os.mkdirs(trashPath)
+for myFile in glob.glob(r'models/chkPt*'):
+    shutil.move(myFile, trashPath)
+shutil.rmtree(trashPath)
+

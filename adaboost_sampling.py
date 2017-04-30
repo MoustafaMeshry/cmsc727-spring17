@@ -340,7 +340,7 @@ def runIMDBExperiment(samplingRatio=0.5, nEpochs=5, nBoostIters=10,
         f.write("Number of epochs = " + str(nEpochs) + "\n")
         f.write("Sampling ratio = " + str(samplingRatio) + "\n")
         f.write("Dropout = " + str(dropoutProb) + "\n")
-        f.write("Running time = " + str(runTimeSec/60) + " minutes")
+        f.write("Running time = " + str(runTimeSec/60) + " minutes\n")
         printResultsSummary(metaData[modelsTrainAccKey], 'Models Train Accuracy:',
                             'Accuracy', 'model', f)
         f.write("--------------------------------------------------\n")
