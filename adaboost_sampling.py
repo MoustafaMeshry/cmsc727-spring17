@@ -45,17 +45,17 @@ def computeAccuracy(labels, gtLabels):
 
 # ===========================================================================
 
-def evaluateAdaboost(models, alphas, data, gtLabels, adaScores=None, printResults=False):
+def evaluateAdaboost(models, alphas, data, gtLabels, nClasses, adaScores=None, printResults=False):
     if adaScores is None:
         print("W: Computing classification scores from scratch!")
         n = len(gtLabels)
-        adaScores = np.zeros(n * 2).reshape(n, 2) # 2 is the number of classes
+        adaScores = np.zeros(n * nClasses).reshape(n, nClasses)
         for i in range(len(alphas) - 1):
-            scores = predict(models[i], data)
+            scores = predict(models[i], data, nClasses)
             adaScores = adaScores + alphas[i] * scores
 
     last = len(alphas) - 1
-    scores = predict(models[last], data)
+    scores = predict(models[last], data, nClasses)
     adaScores = adaScores + alphas[last] * scores
     if printResults:
         modelLabels = np.argmax(scores, 1)
@@ -73,9 +73,9 @@ def evaluateAdaboost(models, alphas, data, gtLabels, adaScores=None, printResult
 
 # ===========================================================================
 
-def predict(model, data):
+def predict(model, data, nClasses):
     n = len(data)
-    y = np.zeros(n * 2).reshape(n, 2) # 2 is the number of classes
+    y = np.zeros(n * nClasses).reshape(n, nClasses)
     chunkSize = 5000
     for i in range(0, n, chunkSize):
         endIndex = np.minimum(i + chunkSize, n)
@@ -86,8 +86,8 @@ def predict(model, data):
 
 # ===========================================================================
 
-def predictLabels(model, data):
-    yScores = predict(model, data)
+def predictLabels(model, data, nClasses):
+    yScores = predict(model, data, nClasses)
     yLabels = np.argmax(yScores, 1)
     return yLabels
 
@@ -148,6 +148,7 @@ def runIMDBExperiment(samplingRatio=0.5, nEpochs=5, nBoostIters=10,
 
 
     nTrain = len(trainY)
+    nClasses = len(np.unique(trainY))
     w_boost = np.ones(nTrain) / nTrain
     sampleSz = int(samplingRatio * nTrain)
     models = [None] * nBoostIters
@@ -167,10 +168,10 @@ def runIMDBExperiment(samplingRatio=0.5, nEpochs=5, nBoostIters=10,
         metaData[boostTestAccKey] = np.zeros(nBoostIters)
         metaData[boostValAccKey] = np.zeros(nBoostIters)
         metaData[wVecsKey] = [None] * nBoostIters
-        metaData[adaScoresTrainKey] = np.zeros(len(trainLabels) * 2).reshape(
-                            len(trainLabels), 2) # 2 = num of classes
-        metaData[adaScoresTestKey] = np.zeros(len(testLabels) * 2).reshape(
-                            len(testLabels), 2) # 2 = num of classes
+        metaData[adaScoresTrainKey] = np.zeros(len(trainLabels) * nClasses).reshape(
+                            len(trainLabels), nClasses)
+        metaData[adaScoresTestKey] = np.zeros(len(testLabels) * nClasses).reshape(
+                            len(testLabels), nClasses)
     else:
         with open(metaDataFile, 'rb') as f:
             metaData = pickle.load(f)
@@ -254,24 +255,24 @@ def runIMDBExperiment(samplingRatio=0.5, nEpochs=5, nBoostIters=10,
         model.save(modelFilePath)
 
         # Compute alpha and update weights
-        modelTrainLabels = predictLabels(model, trainX)
+        modelTrainLabels = predictLabels(model, trainX, nClasses)
         correctMask = modelTrainLabels == trainLabels
         eps = np.sum(w_boost[np.logical_not(correctMask)])
-        alpha = 0.5 * np.log((1-eps)/eps)
+        alpha = 0.5 * np.log((nClasses-1) * (1-eps) / eps)
         alphas[i] = alpha
         w_boost[correctMask] = w_boost[correctMask] / (2 * (1 - eps))
         w_boost[np.logical_not(correctMask)] = w_boost[np.logical_not(correctMask)] / (2 * eps)
 
         # Compute metrics
         modelTrainAcc = computeAccuracy(modelTrainLabels, trainLabels)
-        modelTestLabels = predictLabels(model, testX)
+        modelTestLabels = predictLabels(model, testX, nClasses)
         modelTestAcc = computeAccuracy(modelTestLabels, testLabels)
-        modelValLabels = predictLabels(model, validationX)
+        modelValLabels = predictLabels(model, validationX, nClasses)
         modelValAcc = computeAccuracy(modelValLabels, validationLabels)
         boostTrainAcc,adaScoresTrain,adaLabelsTrain = evaluateAdaboost(
-            [models[i]], [alphas[i]], trainX, trainLabels, adaScores=adaScoresTrain)
+            [models[i]], [alphas[i]], trainX, trainLabels, nClasses, adaScores=adaScoresTrain)
         boostTestAcc,adaScoresTest,_ = evaluateAdaboost(
-            [models[i]], [alphas[i]], testX, testLabels, adaScores=adaScoresTest)
+            [models[i]], [alphas[i]], testX, testLabels, nClasses, adaScores=adaScoresTest)
 
         # Save/(update saved) dictionay
         metaData[numSavedModelsKey] = metaData[numSavedModelsKey] + 1
