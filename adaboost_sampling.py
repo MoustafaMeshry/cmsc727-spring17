@@ -4,7 +4,7 @@ Dataset: IMDB sentiment dataset
 """
 from __future__ import division, print_function, absolute_import
 
-import os.path
+import os
 import pickle
 import sys
 from tflearn.data_utils import to_categorical, pad_sequences
@@ -110,6 +110,8 @@ def runIMDBExperiment(samplingRatio=0.5, nEpochs=5, nBoostIters=10,
         dropoutProb=0.8, numH=128):
     # Constants
     kDataDir = 'models'
+    if not os.path.isdir(kDataDir):
+        os.mkdir(kDataDir)
 
     # Dictionary keys
     adaScoresTestKey = 'adaScoresTest'
@@ -224,13 +226,16 @@ def runIMDBExperiment(samplingRatio=0.5, nEpochs=5, nBoostIters=10,
     for i in range(numLoadedModels, nBoostIters):
 #        sample = np.random.randint(0, nTrain, sampleSz) # uniform sampling
 
-        wCumSum = np.cumsum(w_boost)
-        sample = np.searchsorted(wCumSum, np.random.rand(sampleSz)) # weighted sampling
+        if sampleSz < nTrain:
+            wCumSum = np.cumsum(w_boost)
+            sample = np.searchsorted(wCumSum, np.random.rand(sampleSz)) # weighted sampling
 
-        # Applying soft-replacement! (TODO: leave it or remove it?)
-        sample = np.unique(sample)
-        remSample = np.random.randint(0, nTrain, sampleSz - len(sample))
-        sample = np.concatenate((sample, remSample))
+            # Applying soft-replacement! (TODO: leave it or remove it?)
+            sample = np.unique(sample)
+            remSample = np.random.randint(0, nTrain, sampleSz - len(sample))
+            sample = np.concatenate((sample, remSample))
+        else:
+            sample = np.arange(nTrain)
 
         redundancy = 100 * (1 - len(np.unique(sample)) / len(sample))
 
