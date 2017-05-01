@@ -66,7 +66,7 @@ if runArchExp:
 
 # Remove checkpoints
 trashPath = os.path.join('models', 'check_point_trash')
-os.mkdirs(trashPath)
+os.mkdir(trashPath)
 for myFile in glob.glob(r'models/chkPt*'):
     shutil.move(myFile, trashPath)
 shutil.rmtree(trashPath)
