@@ -323,6 +323,7 @@ def runIMDBExperiment(samplingRatio=0.5, nEpochs=5, nBoostIters=10,
     print("Number classifiers = " + str(nBoostIters))
     print("Number of epochs = " + str(nEpochs))
     print("Sampling ratio = " + str(samplingRatio))
+    print("Number of hidden units = " + str(numH))
     print("Dropout = " + str(dropoutProb))
     print("Running time = " + str(runTimeSec/60) + " minutes")
     printResultsSummary(metaData[modelsTrainAccKey], 'Models Train Accuracy:', 'Accuracy', 'model')
@@ -344,6 +345,7 @@ def runIMDBExperiment(samplingRatio=0.5, nEpochs=5, nBoostIters=10,
         f.write("Number classifiers = " + str(nBoostIters) + "\n")
         f.write("Number of epochs = " + str(nEpochs) + "\n")
         f.write("Sampling ratio = " + str(samplingRatio) + "\n")
+        f.write("Number of hidden units = " + str(numH) + "\n")
         f.write("Dropout = " + str(dropoutProb) + "\n")
         f.write("Running time = " + str(runTimeSec/60) + " minutes\n")
         printResultsSummary(metaData[modelsTrainAccKey], 'Models Train Accuracy:',
