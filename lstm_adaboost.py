@@ -210,23 +210,34 @@ def ada_data_eval(sess,data,network,lstm1,lstm2,nboost_iters,model):
         ada_accum.append(np.stack(accum));
     roger=np.stack(ada_accum);
     goals=np.array(goals);
+    alphas=np.load('alphas_'+str(model)+'.npy');
     h5f = h5py.File('model_data_'+str(model)+'.h5', 'w')
     h5f.create_dataset('roger', data=roger)
     h5f.create_dataset('goals', data=goals)
+    h5f.create_dataset('alphas', data=alphas)
     h5f.create_dataset('model_accuracies', data=np.stack(acc_list))
     h5f.close()
-    alphas=np.load('alphas_'+str(model)+'.npy');
-    pred=np.zeros((nboost_iters,step,batch_size*num_steps));
+
+def predict_adaboost(model):
+    h5f = h5py.File('model_data_'+str(model)+'.h5', 'r')
+    roger=h5f['roger'][:];
+    alphas=h5f['alphas'][:];
+    goals=h5f['goals'][:];
+    accur=h5f['model_accuracies'][:];
+    h5f.close()
+    step=roger.shape[1];
+    nboost_iters=roger.shape[0];
+    bsxns=roger.shape[2];
+    pred=np.zeros((nboost_iters,step,bsxns));
     for a in range(step):
-        for b in range(batch_size*num_steps):
-            for y in nboost_iters:
+        for b in range(bsxns):
+            for y in range(nboost_iters):
                 er=np.zeros((y+1,10000))
                 er[range(y+1),roger[:y+1,a,b]]=alphas[:y+1];
-                pred[y,a,b]=np.argmax(np.sum(er,0));
+                pred[y,a,b]=np.argmax(np.sum(er,0));             #adaboost predictions using ada-models 1:y
     # for a in range(step):
     #     accur.append(len(np.where(pred[a,:]==goals[a,:])[0]));
     h5f = h5py.File('model_data_'+str(model)+'.h5', 'a')
-    h5f.create_dataset('alphas', data=alphas);
     h5f.create_dataset('adabst_predictions', data=pred);
     # h5f.create_dataset('adabst_accuracies', data=np.array(accur));
     h5f.close()
@@ -622,7 +633,9 @@ nboost_iters=15;
 # Train_ada(sess,train_data,network,lstm1,lstm2,model,nboost_iters);
 # alphas=np.load('alphas_'+str(model)+'.npy');
 ada_data_eval(sess,valid_data,network_val,lstm1_val,lstm2_val,nboost_iters,model);
+# predict_adaboost(model);
 model=2;
 ada_data_eval(sess,valid_data,network_val,lstm1_val,lstm2_val,nboost_iters,model);
+# predict_adaboost(model);
 
 

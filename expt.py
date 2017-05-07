@@ -281,19 +281,19 @@ tl.files.assign_params(sess, load_params, network);
 # 3: 0.47
 # 4: 0.74
 
-# for i in range(max_max_epoch):
-#     train_perplexity, train_acc=Train(sess,train_data,network,lstm1,lstm2);
-#     print("Epoch: %d/%d Train Perplexity: %.3f, Epoch_train_acc: %.3f" % (i + 1, max_max_epoch,train_perplexity,train_acc))
+for i in range(max_max_epoch):
+    train_perplexity, train_acc=Train(sess,train_data,network,lstm1,lstm2);
+    print("Epoch: %d/%d Train Perplexity: %.3f, Epoch_train_acc: %.3f" % (i + 1, max_max_epoch,train_perplexity,train_acc))
 
-#     valid_perplexity, valid_acc=Validate(sess,valid_data[:20000],network_val,lstm1_val,lstm2_val);
-#     print("Epoch: %d/%d Valid Perplexity: %.3f, Epoch_valid_acc: %.3f" % (i + 1, max_max_epoch,
-#                                                         valid_perplexity,valid_acc))
-#     start_time = time.time()
-#     test_perplexity, test_acc=Test(sess,test_data[:20000],network_test,lstm1_test,lstm2_test);
-#     print("Epoch: %d/%d Test Perplexity: %.3f took %.2fs, test_acc: %.3f" % (i + 1, max_max_epoch,test_perplexity, time.time() - start_time, test_acc));
+    valid_perplexity, valid_acc=Validate(sess,valid_data[:20000],network_val,lstm1_val,lstm2_val);
+    print("Epoch: %d/%d Valid Perplexity: %.3f, Epoch_valid_acc: %.3f" % (i + 1, max_max_epoch,
+                                                        valid_perplexity,valid_acc))
+    start_time = time.time()
+    test_perplexity, test_acc=Test(sess,test_data[:20000],network_test,lstm1_test,lstm2_test);
+    print("Epoch: %d/%d Test Perplexity: %.3f took %.2fs, test_acc: %.3f" % (i + 1, max_max_epoch,test_perplexity, time.time() - start_time, test_acc));
 
-#     tl.files.save_npz(network.all_params , name='model_'+str(j)+'_chkpoint_'+str(i)+'.npz');                                                 
+    tl.files.save_npz(network.all_params , name='model_'+str(j)+'_chkpoint_'+str(i)+'.npz');                                                 
 
-start_time = time.time()
-test_perplexity, test_acc=Test(sess,test_data[:20000],network_test,lstm1_test,lstm2_test);
-print("Epoch: %d/%d Test Perplexity: %.3f took %.2fs, test_acc: %.3f" % (i + 1, max_max_epoch,test_perplexity, time.time() - start_time, test_acc));
+# start_time = time.time()
+# test_perplexity, test_acc=Test(sess,test_data[:20000],network_test,lstm1_test,lstm2_test);
+# print("Epoch: %d/%d Test Perplexity: %.3f took %.2fs, test_acc: %.3f" % (i + 1, max_max_epoch,test_perplexity, time.time() - start_time, test_acc));
