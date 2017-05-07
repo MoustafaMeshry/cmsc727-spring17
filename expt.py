@@ -49,7 +49,7 @@ def inference(x, is_training, num_steps, reuse=None):
 
   print("\nnum_steps : %d, is_training : %s, reuse : %s" %
                                                 (num_steps, is_training, reuse))
-  initializer = tf.random_uniform_initializer(init_scale, init_scale)
+  initializer = tf.random_uniform_initializer(-init_scale, init_scale)
   with tf.variable_scope("model", reuse=reuse):
     tl.layers.set_name_reuse(reuse)
     network = tl.layers.EmbeddingInputlayer(
@@ -226,7 +226,7 @@ num_steps = 20;
 hidden_size = 200;
 max_epoch = 4;
 max_max_epoch = 13;
-keep_prob = 1.0;
+keep_prob = 0.74;
 lr_decay = 0.5;
 batch_size = 20;
 vocab_size = 10000;
@@ -272,17 +272,28 @@ network.print_params()
 network.print_layers()
 tl.layers.print_all_variables()
 
-j=1
-for i in range(max_max_epoch):
-    train_perplexity, train_acc=Train(sess,train_data,network,lstm1,lstm2);
-    print("Epoch: %d/%d Train Perplexity: %.3f, Epoch_train_acc: %.3f" % (i + 1, max_max_epoch,train_perplexity,train_acc))
+load_params = tl.files.load_npz(name='model_4_chkpoint_12.npz');
+tl.files.assign_params(sess, load_params, network);
 
-    valid_perplexity, valid_acc=Validate(sess,valid_data[:20000],network_val,lstm1_val,lstm2_val);
-    print("Epoch: %d/%d Valid Perplexity: %.3f, Epoch_valid_acc: %.3f" % (i + 1, max_max_epoch,
-                                                        valid_perplexity,valid_acc))
-    start_time = time.time()
-    test_perplexity, test_acc=Test(sess,test_data[:20000],network_test,lstm1_test,lstm2_test);
-    print("Epoch: %d/%d Test Perplexity: %.3f took %.2fs, test_acc: %.3f" % (i + 1, max_max_epoch,test_perplexity, time.time() - start_time, test_acc));
+#model dropouts
+# 1: 1
+# 2: 0.2
+# 3: 0.47
+# 4: 0.74
 
-    tl.files.save_npz(network.all_params , name='model_'+str(j)+'_chkpoint_'+str(i)+'.npz');                                                 
+# for i in range(max_max_epoch):
+#     train_perplexity, train_acc=Train(sess,train_data,network,lstm1,lstm2);
+#     print("Epoch: %d/%d Train Perplexity: %.3f, Epoch_train_acc: %.3f" % (i + 1, max_max_epoch,train_perplexity,train_acc))
 
+#     valid_perplexity, valid_acc=Validate(sess,valid_data[:20000],network_val,lstm1_val,lstm2_val);
+#     print("Epoch: %d/%d Valid Perplexity: %.3f, Epoch_valid_acc: %.3f" % (i + 1, max_max_epoch,
+#                                                         valid_perplexity,valid_acc))
+#     start_time = time.time()
+#     test_perplexity, test_acc=Test(sess,test_data[:20000],network_test,lstm1_test,lstm2_test);
+#     print("Epoch: %d/%d Test Perplexity: %.3f took %.2fs, test_acc: %.3f" % (i + 1, max_max_epoch,test_perplexity, time.time() - start_time, test_acc));
+
+#     tl.files.save_npz(network.all_params , name='model_'+str(j)+'_chkpoint_'+str(i)+'.npz');                                                 
+
+start_time = time.time()
+test_perplexity, test_acc=Test(sess,test_data[:20000],network_test,lstm1_test,lstm2_test);
+print("Epoch: %d/%d Test Perplexity: %.3f took %.2fs, test_acc: %.3f" % (i + 1, max_max_epoch,test_perplexity, time.time() - start_time, test_acc));
